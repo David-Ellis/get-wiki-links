@@ -1,0 +1,5 @@
+Theme;Title;Date;Source;URL;Description;Image
+"Python";"Beautiful Soup website";"April";"";"http://www.crummy.com/software/BeautifulSoup/#Download";"";""
+"Python";"10.1007/978-1-4842-3925-4_3";"2018";"Website Scraping with Python: Using BeautifulSoup and Scrapy";"https://doi.org/10.1007%2F978-1-4842-3925-4_3";"In this chapter, you will learn how to use Beautiful Soup, a lightweight Python library, to extract and navigate HTML content easily and forget overly complex regular expressions and text parsing.";"https://static-content.springer.com/cover/book/978-1-4842-3925-4.jpg"
+"Python";"Code : Leonard Richardson";"";"Launchpad";"https://code.launchpad.net/%7Eleonardr/+branches";"";""
+"Python";"beautifulsoup4 | pypi via the Tidelift Subscription";"";"tidelift.com";"https://tidelift.com/subscription/pkg/pypi-beautifulsoup4";"Tidelift works with the maintainers of beautifulsoup4on pypi & thousands of other projects to deliver support & maintenance for the open source dependencies used to build your applications.";"https://www.tidelift.com/hubfs/Tidelift_Twitter_In-Line_1-580714-edited.jpg#keepProtocol"

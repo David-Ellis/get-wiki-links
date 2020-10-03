@@ -1,39 +1,74 @@
 import bs4
 import requests
 import re
+import os
+import csv
 
-def getWikiRefs(url):
+def get_headers(extra_headers = None):
+    '''
+    Make a list of the headers with any headers beyond the default first
+    '''
+    fieldnames = ["Title", "Date", "Source", "URL", "Description", "Image"]
+    
+    # Add any extra headers
+    if extra_headers != None:
+        assert type(extra_headers) == list, "Error: extra headers should be in a list"
+        for header in extra_headers[::-1]:
+            fieldnames.insert(0,header)
+            
+    return fieldnames
+
+def make_csv(file_name, extra_headers = None):
+    '''
+    Create a new csv file with default headers + any addional headers given
+    '''
+    with open(file_name, mode='w', newline='\n') as csv_file:
+        fieldnames = get_headers(extra_headers)
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames, delimiter=';')
+        writer.writeheader()
+
+def getWikiRefs(url, progress = False):
     res = requests.get(url)
     soup = bs4.BeautifulSoup(res.content, features="lxml")
     linkElems = soup.find_all(class_ = 'reference-text')
     wikiRefs = []
 
-    
-    for elem in linkElems:
+    for i, elem in enumerate(linkElems):
         #print(elem, "\n\n")
         wikiRefs.append(wikiref(elem))
+        if progress == True:
+            print("{} of {} complete".format(i+1, len(linkElems)), end = "\r")
         
     return wikiRefs
     
 def getSource(text):
     text = str(text)
-    #print(text, "\n")
     text = text.replace("\n", "")
-    text = text.replace(".", "")
-    match = re.search(r"</a>.*?<span class=\"reference-accessdate\">", text).group()
-    #print(match)
-    match = re.sub(r'(<.*?>|\s{2,})', '', match)
-    match = re.sub(r'\(.*?\)', '', match)
-    match = re.sub(r'\d{1,2}\s+\w+\s+20\d{2}', '', match)
+    try:
+        match = re.findall(r"<i>(.+?)</i>", text)[0]
+        match = re.sub(r"\s\s+", "", match)
+    except:
+        match = None
     return match
 
 def get_date(soup):
     #class="reference-accessdate"
-    date = soup.find(class_="reference-accessdate").text
-    date = re.sub(r"\.", "", date)
-    date = re.sub(r"\s\s+", "", date)
-    date = re.sub(r"Retrieved", "", date)
-    date = re.sub(r"(\w+)(\d{4})", r"\1 \2", date)
+    try:
+        
+        date = soup.find(class_="reference-text").text
+        date = date.replace("\n", "")
+        date = re.findall(r"\d+?\s+?(\w+)?\s+?\d{4}", date)[0]
+        date = date.replace("\'" , "")
+        
+#         if date == None:
+#             #try getting access date
+#             date = soup.find(class_="reference-accessdate").text
+#             date = re.sub(r"\.", "", date)
+#             date = re.sub(r"\s\s+", "", date)
+#             date = re.sub(r"Retrieved", "", date)
+#             date = re.sub(r"(\w+)(\d{4})", r"\1 \2", date)
+    except:
+        date = None
     return date
 
 def get_image(soup):
@@ -134,3 +169,36 @@ class wikiref:
             self.image = get_input("New image url:")
         else:
             Exception("Cannot update wikiref. Entry not recognised.")
+            
+    def save(self, file_name, extra_headers = None, extra_items = None):
+        
+        # If the file doesn't exist then ask if we should make one
+        if not os.path.isfile(file_name):
+            print("Save file does not exist.")
+            make_new = input("Make new file \" {} \" ? [y/n]".format(file_name)).lower()
+            if make_new == "y":
+                #make new file
+                make_csv(file_name, extra_headers = extra_headers)
+            else:
+                Exception("No file to save too.")
+        
+        self.append_csv(file_name, extra_headers, extra_items)
+        
+    def append_csv(self, file_name, extra_headers = None, extra_items = None):
+        fieldnames = get_headers(extra_headers)
+        with open(file_name,'a', newline='\n') as csv_file:
+            writer = csv.DictWriter(csv_file, fieldnames = fieldnames, 
+                                    delimiter=';', quoting = csv.QUOTE_NONNUMERIC, quotechar='"')
+
+            row = {"Title" : self.title,
+                   'Source': self.source, 
+                   'Date'  : self.date, 
+                   "URL"   : self.link,
+                   "Image" : self.image, 
+                   "Description" : self.description}
+
+            if extra_headers != None:
+                assert extra_items != None, "Error: No items for extra headers"
+                for header, item in zip(extra_headers, extra_items):
+                    row[header] = item
+            writer.writerow(row)
