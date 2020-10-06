@@ -27,9 +27,24 @@ def make_csv(file_name, extra_headers = None):
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames, delimiter=';')
         writer.writeheader()
 
+def checkPage(url):
+    '''
+    Check if page exists
+    '''
+    res = requests.get(url)
+    soup = bs4.BeautifulSoup(res.content, features="lxml")
+    
+    refs = soup.find_all(class_ = 'reference-text')    
+    
+    if len(refs) == 0:
+        return False
+    else:
+        return True
+    
 def getWikiRefs(url, progress = False):
     res = requests.get(url)
     soup = bs4.BeautifulSoup(res.content, features="lxml")
+    
     linkElems = soup.find_all(class_ = 'reference-text')
     wikiRefs = []
 
@@ -38,6 +53,9 @@ def getWikiRefs(url, progress = False):
         wikiRefs.append(wikiref(elem))
         if progress == True:
             print("{} of {} complete".format(i+1, len(linkElems)), end = "\r")
+        
+    if len(wikiRefs) == 0:
+        print("Error: No references found.")
         
     return wikiRefs
     
@@ -60,13 +78,6 @@ def get_date(soup):
         date = re.findall(r"\d+?\s+?(\w+)?\s+?\d{4}", date)[0]
         date = date.replace("\'" , "")
         
-#         if date == None:
-#             #try getting access date
-#             date = soup.find(class_="reference-accessdate").text
-#             date = re.sub(r"\.", "", date)
-#             date = re.sub(r"\s\s+", "", date)
-#             date = re.sub(r"Retrieved", "", date)
-#             date = re.sub(r"(\w+)(\d{4})", r"\1 \2", date)
     except:
         date = None
     return date
@@ -122,28 +133,56 @@ def get_input(text):
             accepted = True
     return input_text
 
-class wikiref:
-    def __init__(self, html):
-        soup2 = bs4.BeautifulSoup(html.prettify(), features="lxml")
-        self.html = str(soup2)
-        title_html = soup2.find(class_ = "external text")
-        
-        # get url
-        self.link = title_html.get('href')
-        
-        # get title
+def get_title(soup, ref_url):
+    title_html = soup.find(class_ = "external text")
+    try:
         title_text = title_html.string
         title_text = re.sub(r"\s\s\s+", '', title_text)
-        self.title = re.sub(r"\"", '', title_text)
+        title_text = re.sub(r"\"", '', title_text)
+        title_text  = re.sub(r"\n","", title_text)
+    except:
+        try:
+            res = requests.get(ref_url)
+            soup = bs4.BeautifulSoup(res.content, features="lxml")
+            title_text = re.match(r"<title>(.*?)</title>", str(soup.title)).group(1)
+            title_text = re.sub(r"\s\s+","", title_text)
+            title_text  = re.sub(r"\n","", title_text)
+        except:
+            title_text = None
+    return title_text
+        
+def get_link(soup):
+    title_html = soup.find(class_ = "external text")
+    try:
+        link = title_html.get('href')
+    except:
+        try:
+            link = soup.get('href')
+        except:
+            link = None
+    return link
+    
+class wikiref:
+    def __init__(self, html):
+        soup = bs4.BeautifulSoup(html.prettify(), features="lxml")
+        self.html = str(soup)
+        
+        
+        # get url
+        self.link = get_link(soup)
+        
+        # get title
+        self.title = get_title(soup, self.link)
         
         # get source name
-        self.source = getSource(soup2.find(class_ = "reference-text"))
+        self.source = getSource(soup.find(class_ = "reference-text"))
         
         # get image and description
-        self.image, self.description = source_page_info(self.link)
+        if self.link != None:
+            self.image, self.description = source_page_info(self.link)
         
         # get date
-        self.date = get_date(soup2)
+        self.date = get_date(soup)
         
     def print_ref(self):
         print("Title:\t", self.title,
